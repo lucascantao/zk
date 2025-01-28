@@ -60,7 +60,7 @@ class SyncPrimitive implements Watcher {
          * @param root
          * @param size
          */
-        Barrier(String address, String root, int size) {
+        Barrier(String address, String root, int size, String name) {
             super(address);
             this.root = root;
             this.size = size;
@@ -83,11 +83,12 @@ class SyncPrimitive implements Watcher {
             }
 
             // My node name
-            try {
-                name = new String(InetAddress.getLocalHost().getCanonicalHostName().toString());
-            } catch (UnknownHostException e) {
-                System.out.println(e.toString());
-            }
+            this.name = name;
+            // try {
+            //     name = new String(InetAddress.getLocalHost().getCanonicalHostName().toString());
+            // } catch (UnknownHostException e) {
+            //     System.out.println(e.toString());
+            // }
 
         }
 
@@ -243,7 +244,7 @@ public class BarrierTestLSD {
     public static void main(String args[]) {
 
         String q_array[] = {"qTest", "localhost", "3", "c"};
-        String b_array[] = {"bTest", "localhost", "2"};
+        String b_array[] = {"bTest", "localhost", "2", "p2"};
         // queueTest(q_array);
 
         barrierTest(b_array);
@@ -286,7 +287,7 @@ public class BarrierTestLSD {
     }
 
     public static void barrierTest(String args[]) {
-        Barrier b = new Barrier(args[1], "/b1", new Integer(args[2]));
+        Barrier b = new Barrier(args[1], "/b1", new Integer(args[2]), args[3]);
         try{
             boolean flag = b.enter();
             System.out.println("Entered barrier: " + args[2]);
