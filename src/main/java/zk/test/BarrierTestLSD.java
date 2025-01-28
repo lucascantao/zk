@@ -100,9 +100,11 @@ class SyncPrimitive implements Watcher {
          */
 
         boolean enter() throws KeeperException, InterruptedException{
-            System.out.println("*************SUFIXO DE ENTRADA" + root + "/" + name);	
-            zk.create(root + "/" + name, new byte[0], Ids.OPEN_ACL_UNSAFE,
-                    CreateMode.EPHEMERAL);
+            
+            String path = zk.create(root + "/" + name, new byte[0], Ids.OPEN_ACL_UNSAFE,
+            CreateMode.EPHEMERAL);
+            // Stat e_stat = zk.exists(path, true);
+            System.out.println("\n*************\nSUFIXO DE ENTRADA" + path + "\n*************\n");	
             while (true) {
                 synchronized (mutex) {
                     List<String> list = zk.getChildren(root, true);
@@ -124,7 +126,7 @@ class SyncPrimitive implements Watcher {
          * @throws InterruptedException
          */
         boolean leave() throws KeeperException, InterruptedException{
-            System.out.println("*************SUFIXO DE SAÍDA" + root + "/" + name);	
+            System.out.println("\n*************\nSUFIXO DE SAÍDA" + root + "/" + name + "\n*************\n");	
             zk.delete(root + "/" + name, 0);
             while (true) {
                 synchronized (mutex) {
