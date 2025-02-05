@@ -9,63 +9,70 @@ import java.util.concurrent.CountDownLatch;
 
 public class BarreiraSimples implements Watcher {
 
-    private static final String BARRIER_PATH = "/distributed_barrier";
+    private static final String ROOT = "/b_lock";
     private static final int SESSION_TIMEOUT = 3000;
-    private static final int NUM_PARTICIPANTS = 3;
+    private static final int SIZE = 3;
 
-    private ZooKeeper zooKeeper;
-    private final CountDownLatch connectedSignal = new CountDownLatch(1);
+    private ZooKeeper zk = null;
+    static Integer mutex;
+    String name;
 
     public BarreiraSimples(String hostPort) throws IOException {
-        zooKeeper = new ZooKeeper(hostPort, SESSION_TIMEOUT, this);
-        try {
-            connectedSignal.await();
-        } catch(InterruptedException e) {
-            Thread.currentThread().interrupt();
+        this.name = name;
+        if(zk == null){
+            try {
+                System.out.println("Starting ZK:");
+                zk = new ZooKeeper(hostPort, SESSION_TIMEOUT, this);
+                mutex = new Integer(-1);
+                System.out.println("Finished starting ZK: " + zk);
+            } catch (IOException e) {
+                System.out.println(e.toString());
+                zk = null;
+            }
         }
     }
 
     @Override
-    public void process(WatchedEvent event) {
-        if(event.getState() == Event.KeeperState.SyncConnected) {
-            connectedSignal.countDown();
+    synchronized public void process(WatchedEvent event) {
+        synchronized (mutex) {
+            System.out.println("Process: " + event.getType());
+            mutex.notify();
         }
     }
 
     public void createBarrierNode() throws KeeperException, InterruptedException {
-        Stat stat = zooKeeper.exists(BARRIER_PATH, false);
+        Stat stat = zk.exists(ROOT, false);
         if(stat == null) {
-            zooKeeper.create(BARRIER_PATH, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-            System.out.println("Barrier node created: " + BARRIER_PATH);
+            zk.create(ROOT, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+            System.out.println("Barrier node created: " + ROOT);
         }
     }
     
 
     public void enter(String nodeName) throws KeeperException, InterruptedException {
-        String nodePath = BARRIER_PATH + "/" + nodeName;
-        zooKeeper.create(nodePath, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
-        System.out.println("Node entered barrier: " + nodePath);
+        System.out.println("\nProcess "+ nodeName +" waiting for the barrier...");
         barrier_wait();
     }
 
     public void barrier_wait() throws KeeperException, InterruptedException {
-        while (true) {
-            List<String> children = zooKeeper.getChildren(BARRIER_PATH, new BarrierWatcher());
-            System.out.println("Current participants: " + children.size());
-            if (children.size() >= NUM_PARTICIPANTS) {
-                System.out.println("Barrier condition met. All nodes ready.");
-                break;
+        Stat barrier = zk.exists(ROOT, new BarrierWatcher());
+        if(barrier == null) {
+            return;
+        } else {
+            synchronized (mutex) {
+                mutex.wait();
             }
-
-            Thread.sleep(1000);
         }
     }
 
     private class BarrierWatcher implements Watcher {
         @Override
         public void process(WatchedEvent event) {
-            if (event.getType() == Event.EventType.NodeChildrenChanged) {
-                System.out.println("Barrier state changed, checking participants...");
+            if (event.getType() == Event.EventType.NodeDeleted) {
+                synchronized (mutex){
+                    System.out.println("Barrier deleted, releasing processes...");
+                    mutex.notify();
+                }
             }
         }
     }
@@ -75,7 +82,7 @@ public class BarreiraSimples implements Watcher {
 
         barrier.createBarrierNode();
 
-        String nodeName = "node-" + (int) (Math.random() * 1000);
+        String nodeName = "process-" + (int) (Math.random() * 1000);
         barrier.enter(nodeName);
 
         System.out.println("Barrier released. Proceeding with execution!");
