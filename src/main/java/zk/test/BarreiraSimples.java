@@ -7,7 +7,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
-public class DistributedBarrier implements Watcher {
+public class BarreiraSimples implements Watcher {
 
     private static final String BARRIER_PATH = "/distributed_barrier";
     private static final int SESSION_TIMEOUT = 3000;
@@ -16,7 +16,7 @@ public class DistributedBarrier implements Watcher {
     private ZooKeeper zooKeeper;
     private final CountDownLatch connectedSignal = new CountDownLatch(1);
 
-    public DistributedBarrier(String hostPort) throws IOException {
+    public BarreiraSimples(String hostPort) throws IOException {
         zooKeeper = new ZooKeeper(hostPort, SESSION_TIMEOUT, this);
         try {
             connectedSignal.await();
@@ -71,7 +71,7 @@ public class DistributedBarrier implements Watcher {
     }
 
     public static void main(String[] args) throws IOException, InterruptedException, KeeperException {
-        DistributedBarrier barrier = new DistributedBarrier("localhost:2181");
+        BarreiraSimples barrier = new BarreiraSimples("localhost:2181");
 
         barrier.createBarrierNode();
 
