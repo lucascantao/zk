@@ -1,4 +1,4 @@
-package zk.test;
+package zk.test.fase2;
 
 import org.apache.zookeeper.*;
 import org.apache.zookeeper.data.Stat;
