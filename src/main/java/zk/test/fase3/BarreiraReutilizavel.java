@@ -20,7 +20,6 @@ public class BarreiraReutilizavel implements Watcher {
     private static ZooKeeper zk = null;
     static Integer mutex = new Integer(-1);
     static Integer mutexReady = new Integer(-1);
-    static Integer mutexEmpty = new Integer(-1);
     String name;
 
     public BarreiraReutilizavel(String hostPort) throws IOException {
@@ -69,13 +68,6 @@ public class BarreiraReutilizavel implements Watcher {
     
 
     public boolean enter(String name) throws KeeperException, InterruptedException {
-
-
-        // if (zk.getChildren(ROOT, true).size() >= SIZE) {
-        //     synchronized(mutex) {
-        //         mutex.wait();
-        //     }
-        // }
 
 
         // 1. Create a name n = b+“/”+p
@@ -178,7 +170,7 @@ public class BarreiraReutilizavel implements Watcher {
                 // Aguarda notificação do watcher conforme os demais nós vão saindo
                 synchronized (mutex) {
                     mutex.wait();
-                    System.out.println("\n >>> $["+name+"] Ndotification Received\n");
+                    System.out.println("\n >>> $["+name+"] Notification Received\n");
                 }
             }
         // }

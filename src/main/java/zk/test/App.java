@@ -39,7 +39,7 @@ public class App
             try {
                 barrier.createBarrierNode();
 
-                for(int i = 0; i < 1; i++) {
+                for(int i = 0; i < 2; i++) {
                     System.out.println("\n >>> $ INICIANDO CICLO: " + i + "\n");
                     int process = new Random().nextInt(1000);
 
