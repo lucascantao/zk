@@ -3,7 +3,10 @@ package zk.test;
 import org.apache.zookeeper.*;
 import org.apache.zookeeper.data.Stat;
 
+import zk.test.fase3.BarreiraReutilizavel;
+
 import java.io.IOException;
+import java.util.Random;
 
 /**
  * Hello world!
@@ -12,35 +15,48 @@ import java.io.IOException;
 public class App 
 {
 
-    private static ZooKeeper zooKeeper;
-
     public static void main( String[] args ) throws IOException, InterruptedException, KeeperException
     {
-        zooKeeper = new ZooKeeper("localhost:2181", 3000, new Watcher() {
-            @Override
-            public void process(WatchedEvent event) {
-                System.out.println("Evento recebido: " + event);
-            }
-        });
         
-        String path = "/exampleNode";
-        byte[] data = "Hello ZooKeeper".getBytes();
+        for (int i = 0; i < 3; i++) {
+            BarreiraReutilizavel barrier = new BarreiraReutilizavel("localhost:2181");
+            Thread.sleep(1000);
+            // System.out.println("\n >>> $ INICIANDO THREAD: " + i + "\n");
+            new Thread(new Task(barrier, 3)).start();
+        }
+    }
+    static class Task implements Runnable {
+        private final BarreiraReutilizavel barrier;
+        private final int num_cycles;
 
-        String createdPath = zooKeeper.create(path, data, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-        System.out.print(createdPath);
+        public Task(BarreiraReutilizavel barrier, int num_cycles) {
+            this.barrier = barrier;
+            this.num_cycles = num_cycles;
+        }
 
-        Stat stat = new Stat();
-        byte[] retrivedData = zooKeeper.getData(path, true, stat);
-        System.out.println("Dados do nó: " + new String(retrivedData));
+        @Override
+        public void run() {
+            try {
+                barrier.createBarrierNode();
 
-        byte[] newData = "Updated Data".getBytes();
-        zooKeeper.setData(path, newData, stat.getVersion());
-        System.out.println("Dados atualizados");
+                for(int i = 0; i < 1; i++) {
+                    System.out.println("\n >>> $ INICIANDO CICLO: " + i + "\n");
+                    int process = new Random().nextInt(1000);
 
-        Stat updatedStat = zooKeeper.exists(path, false);
+                    String t_name = "n" + process + Thread.currentThread().getName() +"0"+ i;
+                    System.out.println("\n >>> $ " + t_name + " processando ciclo "+ i +" \n");
+                    Thread.sleep(process);
+                    
+                    barrier.enter(t_name);
 
-        zooKeeper.delete(path, updatedStat.getVersion());
-        System.out.println("Nó excluído");
+                    barrier.leave();
 
+                }
+
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
     }
 }

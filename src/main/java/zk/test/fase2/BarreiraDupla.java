@@ -75,11 +75,11 @@ public class BarreiraDupla implements Watcher {
         // 1. Create a name n = b+“/”+p
         String n = ROOT + "/" + name;
 
-        // 2. Create child: create( n, EPHEMERAL)
-        String path = zk.create(n, new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
-
-        // 3. Set watch: exists(b + ‘‘/ready’’, true)
+        // 2. Set watch: exists(b + ‘‘/ready’’, true)
         zk.exists(ROOT + "/ready", new MyWatcher());
+        
+        // 3. Create child: create( n, EPHEMERAL)
+        String path = zk.create(n, new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
         System.out.println("Entering Node: " + path);
 
         // 4. L = getChildren(b, false)
