@@ -36,7 +36,7 @@ public class BarreiraSimples implements Watcher {
     synchronized public void process(WatchedEvent event) {
         synchronized (mutex) {
             System.out.println("Process: " + event.getType());
-            mutex.notify();
+            mutex.notifyAll();
         }
     }
 

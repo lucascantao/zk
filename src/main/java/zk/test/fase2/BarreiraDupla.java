@@ -37,13 +37,7 @@ public class BarreiraDupla implements Watcher {
                 zk = null;
             }
         }
-        
-        // zk = new ZooKeeper(hostPort, SESSION_TIMEOUT, this);
-        // try {
-        //     connectedSignal.await();
-        // } catch(InterruptedException e) {
-        //     Thread.currentThread().interrupt();
-        // }
+
     }
 
     @Override
@@ -74,11 +68,6 @@ public class BarreiraDupla implements Watcher {
             System.out.println("Barrier node created: " + ROOT);
         }
 
-        // try {
-        //     name = new String(InetAddress.getLocalHost().getCanonicalHostName().toString());
-        // } catch (UnknownHostException e) {
-        //     System.out.println(e.toString());
-        // }
     }
     
 
