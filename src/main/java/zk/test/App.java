@@ -21,7 +21,7 @@ public class App
             BarreiraReutilizavel barrier = new BarreiraReutilizavel("localhost:2181");
             Thread.sleep(1000);
             // System.out.println("\n >>> $ INICIANDO THREAD: " + i + "\n");
-            new Thread(new Task(barrier, 1)).start();
+            new Thread(new Task(barrier, 2)).start();
         }
     }
     static class Task implements Runnable {

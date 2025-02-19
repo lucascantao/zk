@@ -49,11 +49,14 @@ public class BarreiraReutilizavel implements Watcher {
         @Override
         synchronized public void process(WatchedEvent event) {
             synchronized (mutexReady) {
-                // if(event.getType() == Event.EventType.NodeDeleted){
+                if(event.getType() == Event.EventType.NodeDeleted){
+                    System.out.println("\n >>> $["+name+"] NÓ READY DELETADO... \n");
+                    mutexReady.notify();
+                } else {
                     System.out.println("\n >>> $["+name+"] NÓ READY CRIADO... \n");
                     // System.out.println("\n >>> $["+name+"] Barreira deletada...");
                     mutexReady.notifyAll();
-                // }
+                }
             }
         }
     }
@@ -68,6 +71,12 @@ public class BarreiraReutilizavel implements Watcher {
     
 
     public boolean enter(String name) throws KeeperException, InterruptedException {
+        
+        synchronized(mutexReady) {
+            if(zk.exists(ROOT + "/ready", new MyWatcher()) != null){
+                mutexReady.wait();
+            }
+        }
 
 
         // 1. Create a name n = b+“/”+p
@@ -108,13 +117,6 @@ public class BarreiraReutilizavel implements Watcher {
         int loop_count = 0;
         int has_node = 1;
 
-        synchronized(mutex) {
-            if(zk.exists(ROOT + "/ready", false) != null){
-                System.out.println("\n >>> $["+name+"] DELETANDO NÓ READY... \n");
-                zk.delete(ROOT + "/ready", -1);
-            }
-        }
-
         String nodePath = ROOT + "/" + name;
 
         // synchronized(mutex){
@@ -122,7 +124,11 @@ public class BarreiraReutilizavel implements Watcher {
             while (true) {
 
                 // Obter lista atual de nós de processos
+                
+                // List<String> list = zk.getChildren(ROOT, false);
                 List<String> children = zk.getChildren(ROOT, false);
+                children.removeIf(s -> s.equals("ready"));
+                
                 if (children.isEmpty()) {
                     System.out.println("\n >>> $["+name+"|loop=" + loop_count + "|n="+has_node+"] No process nodes left. Exiting.\n");
                     return true;
@@ -148,6 +154,14 @@ public class BarreiraReutilizavel implements Watcher {
                     zk.delete(nodePath, -1);
                     System.out.println("\n >>> $["+name+"|loop=" + loop_count + "|n="+has_node+"] Last process node, deleting: " + nodePath + "\n");
                     has_node = 0;
+                    
+                    synchronized(mutex) {
+                        if(zk.exists(ROOT + "/ready", false) != null){
+                            System.out.println("\n >>> $["+name+"] DELETANDO NÓ READY... \n");
+                            zk.delete(ROOT + "/ready", -1);
+                        }
+                    }
+                    
                     return true;
                 }
     
