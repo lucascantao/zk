@@ -1,7 +1,6 @@
 package zk.test;
 
 import org.apache.zookeeper.*;
-import org.apache.zookeeper.data.Stat;
 
 import zk.test.fase3.BarreiraReutilizavel;
 
@@ -22,7 +21,7 @@ public class App
             BarreiraReutilizavel barrier = new BarreiraReutilizavel("localhost:2181");
             Thread.sleep(1000);
             // System.out.println("\n >>> $ INICIANDO THREAD: " + i + "\n");
-            new Thread(new Task(barrier, 3)).start();
+            new Thread(new Task(barrier, 1)).start();
         }
     }
     static class Task implements Runnable {
@@ -39,11 +38,11 @@ public class App
             try {
                 barrier.createBarrierNode();
 
-                for(int i = 0; i < 2; i++) {
+                for(int i = 0; i < num_cycles; i++) {
                     System.out.println("\n >>> $ INICIANDO CICLO: " + i + "\n");
                     int process = new Random().nextInt(1000);
 
-                    String t_name = "n" + process + Thread.currentThread().getName() +"0"+ i;
+                    String t_name = Thread.currentThread().getName() +"0"+ i;
                     System.out.println("\n >>> $ " + t_name + " processando ciclo "+ i +" \n");
                     Thread.sleep(process);
                     

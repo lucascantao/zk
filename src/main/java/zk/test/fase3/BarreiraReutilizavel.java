@@ -40,7 +40,7 @@ public class BarreiraReutilizavel implements Watcher {
         synchronized (mutex) {
             // System.out.println("\n >>> $ process: " + name +"\n");
             System.out.println("\n >>> $["+name+"] NOTIFY: " + event.getType() + "\n");
-            mutex.notify();
+            mutex.notifyAll();
         }
     }
 
@@ -52,7 +52,7 @@ public class BarreiraReutilizavel implements Watcher {
                 // if(event.getType() == Event.EventType.NodeDeleted){
                     System.out.println("\n >>> $["+name+"] NÓ READY CRIADO... \n");
                     // System.out.println("\n >>> $["+name+"] Barreira deletada...");
-                    mutexReady.notify();
+                    mutexReady.notifyAll();
                 // }
             }
         }
@@ -105,7 +105,8 @@ public class BarreiraReutilizavel implements Watcher {
 
     public boolean leave() throws KeeperException, InterruptedException{
 
-        // Thread.sleep(new Random().nextInt(1000));
+        int loop_count = 0;
+        int has_node = 1;
 
         synchronized(mutex) {
             if(zk.exists(ROOT + "/ready", false) != null){
@@ -119,10 +120,11 @@ public class BarreiraReutilizavel implements Watcher {
         // synchronized(mutex){
 
             while (true) {
+
                 // Obter lista atual de nós de processos
                 List<String> children = zk.getChildren(ROOT, false);
                 if (children.isEmpty()) {
-                    System.out.println("\n >>> $["+name+"] No process nodes left. Exiting.\n");
+                    System.out.println("\n >>> $["+name+"|loop=" + loop_count + "|n="+has_node+"] No process nodes left. Exiting.\n");
                     return true;
                 }
     
@@ -131,10 +133,10 @@ public class BarreiraReutilizavel implements Watcher {
     
                 // Checa se o nó atual foi removido, quando o loop retornar por conta do notify()
                 int currentIndex = children.indexOf(name);
-                System.out.println("\n >>> $["+name+"] SORTED CHILDREN: " + children + "\n");
-                System.out.println("\n >>> $["+name+"] NAME: " + name + " CURRENT INDEX: " + currentIndex + "\n");
+                System.out.println("\n >>> $["+name+"|loop=" + loop_count + "|n="+has_node+"] SORTED CHILDREN: " + children + "\n");
+                System.out.println("\n >>> $["+name+"|loop=" + loop_count + "|n="+has_node+"] NAME: " + name + " CURRENT INDEX: " + currentIndex + "\n");
                 if (currentIndex == -1) {
-                    System.out.println("\n >>> $["+name+"] Node already deleted. Exiting.\n");
+                    System.out.println("\n >>> $["+name+"|loop=" + loop_count + "|n="+has_node+"] Node already deleted. Exiting.\n");
                     return true;
                 }
     
@@ -143,34 +145,41 @@ public class BarreiraReutilizavel implements Watcher {
     
                 if (children.size() == 1 && children.get(0).equals(name)) {
                     // Caso único: Processo é o último nó restante
-                    System.out.println("\n >>> $["+name+"] Last process node, deleting: " + nodePath + "\n");
                     zk.delete(nodePath, -1);
+                    System.out.println("\n >>> $["+name+"|loop=" + loop_count + "|n="+has_node+"] Last process node, deleting: " + nodePath + "\n");
+                    has_node = 0;
                     return true;
                 }
     
                 if (name.equals(lowestNode)) {
                     // Se for o menor nó, aguarda remoção do maior nó
-                    System.out.println("\n >>> $["+name+"] Waiting for highest node to be deleted: " + highestNode + "\n");
+                    System.out.println("\n >>> $["+name+"|loop=" + loop_count + "|n="+has_node+"] Waiting for highest node to be deleted: " + highestNode + "\n");
                     zk.exists(ROOT + "/" + highestNode, this);                    
                 } 
                 
                 else {
                     // Se não for o menor, espera a remoção do nó anterior
                     String previousNode = children.get(currentIndex - 1);
-                    System.out.println("\n >>> $["+name+"] Waiting for previous node to be deleted: " + previousNode + "\n");
-                    zk.exists(ROOT + "/" + previousNode, this);
+                    if(zk.exists(ROOT + "/" + previousNode, this) == null){
+                        System.out.println("\n >>> $["+name+"|loop=" + loop_count + "|n="+has_node+"]" + previousNode + " already deleted. exiting\n");
+                    } else {
+                        System.out.println("\n >>> $["+name+"|loop=" + loop_count + "|n="+has_node+"] Waiting for previous node to be deleted: " + previousNode + "\n");
+                    }
+                    // zk.exists(ROOT + "/" + previousNode, this);
     
                     // Deleta o nó atual se ainda existir
-                    if (zk.exists(nodePath, false) != null) {
-                        System.out.println("\n >>> $["+name+"] Deleting current node: " + nodePath + "\n");
+                    if (zk.exists(nodePath, this) != null) {
                         zk.delete(nodePath, -1);
+                        System.out.println("\n >>> $["+name+"|loop=" + loop_count + "|n="+has_node+"] Deleting current node: " + nodePath + "\n");
+                        has_node = 0;
                     }
                 }
     
                 // Aguarda notificação do watcher conforme os demais nós vão saindo
                 synchronized (mutex) {
                     mutex.wait();
-                    System.out.println("\n >>> $["+name+"] Notification Received\n");
+                    System.out.println("\n >>> $["+name+"|loop=" + loop_count + "|n="+has_node+"] Notification Received, proceding to next loop.\n");
+                    loop_count++;
                 }
             }
         // }
