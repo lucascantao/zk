@@ -21,7 +21,7 @@ public class App
             BarreiraReutilizavel barrier = new BarreiraReutilizavel("localhost:2181");
             Thread.sleep(1000);
             // System.out.println("\n >>> $ INICIANDO THREAD: " + i + "\n");
-            new Thread(new Task(barrier, 2)).start();
+            new Thread(new Task(barrier, 10)).start();
         }
     }
     static class Task implements Runnable {
@@ -40,7 +40,7 @@ public class App
 
                 for(int i = 0; i < num_cycles; i++) {
                     System.out.println("\n >>> $ INICIANDO CICLO: " + i + "\n");
-                    int process = new Random().nextInt(1000);
+                    int process = new Random().nextInt(5000);
 
                     String t_name = Thread.currentThread().getName() +"0"+ i;
                     System.out.println("\n >>> $ " + t_name + " processando ciclo "+ i +" \n");
