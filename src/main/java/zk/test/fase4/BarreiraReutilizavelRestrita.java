@@ -1,24 +1,26 @@
-package zk.test.fase3;
+package zk.test.fase4;
 
 import org.apache.zookeeper.*;
 import org.apache.zookeeper.ZooDefs.Ids;
 import org.apache.zookeeper.data.Stat;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 
-public class BarreiraReutilizavel implements Watcher {
+public class BarreiraReutilizavelRestrita implements Watcher {
 
-    public static String ROOT = "/b1";
-    public static int SESSION_TIMEOUT = 3000;
-    public static int SIZE;
+    public static final String ROOT = "/b1";
+    public static final int SESSION_TIMEOUT = 3000;
+    public static int SIZE = 3;
+    public static final List<String> THREADS_AUTORIZADAS = Arrays.asList("Thread-0", "Thread-1", "Thread-4");
 
     private static ZooKeeper zk = null;
     static Integer mutex = new Integer(-1);
     static Integer mutexReady = new Integer(-1);
     String name;
 
-    public BarreiraReutilizavel(String hostPort) throws IOException {
+    public BarreiraReutilizavelRestrita(String hostPort) throws IOException {
         if(zk == null){
             try {
                 System.out.println("\n >>> $ Starting ZK: \n");
@@ -46,6 +48,7 @@ public class BarreiraReutilizavel implements Watcher {
         synchronized public void process(WatchedEvent event) {
             synchronized (mutexReady) {
                 System.out.println("\n >>> $["+name+"] NÓ READY CRIADO... \n");
+                // System.out.println("\n >>> $["+name+"] Barreira deletada...");
                 mutexReady.notifyAll();
             }
         }
@@ -62,6 +65,13 @@ public class BarreiraReutilizavel implements Watcher {
 
     public boolean enter(String name) throws KeeperException, InterruptedException {
 
+
+        if (!THREADS_AUTORIZADAS.contains(name)) {
+            System.out.println("\n >>> $[" + name + "] ACESSO NEGADO! Esta thread não está autorizada a entrar.\n");
+            return false;
+        }
+
+
         this.name = name;
         String n = ROOT + "/" + name;
 
@@ -71,6 +81,7 @@ public class BarreiraReutilizavel implements Watcher {
         System.out.println("\n >>> $["+name+"] Entering Node: " + path + "\n");
 
         List<String> list = zk.getChildren(ROOT, true);
+        // list.removeIf(s -> s.equals("ready"));
 
         synchronized(mutex){
             if (list.size() >= SIZE) {
@@ -86,7 +97,8 @@ public class BarreiraReutilizavel implements Watcher {
             mutexReady.wait();
             return true;
         }
-    }  
+    }
+    
 
 
     public boolean leave() throws KeeperException, InterruptedException{
@@ -97,23 +109,22 @@ public class BarreiraReutilizavel implements Watcher {
         String nodePath = ROOT + "/" + name;
 
             while (true) {
-                String processName = name+"|loop=" + loop_count + "|n="+has_node;
 
                 List<String> children = zk.getChildren(ROOT, false);
                 children.removeIf(s -> s.equals("ready"));
                 
                 if (children.isEmpty()) {
-                    System.out.println("\n >>> $["+processName+"] No process nodes left. Exiting.\n");
+                    System.out.println("\n >>> $["+name+"|loop=" + loop_count + "|n="+has_node+"] No process nodes left. Exiting.\n");
                     return true;
                 }
     
                 children.sort(String::compareTo);
     
                 int currentIndex = children.indexOf(name);
-                System.out.println("\n >>> $["+processName+"] SORTED CHILDREN: " + children + "\n");
-                System.out.println("\n >>> $["+processName+"] NAME: " + name + " CURRENT INDEX: " + currentIndex + "\n");
+                System.out.println("\n >>> $["+name+"|loop=" + loop_count + "|n="+has_node+"] SORTED CHILDREN: " + children + "\n");
+                System.out.println("\n >>> $["+name+"|loop=" + loop_count + "|n="+has_node+"] NAME: " + name + " CURRENT INDEX: " + currentIndex + "\n");
                 if (currentIndex == -1) {
-                    System.out.println("\n >>> $["+processName+"] Node already deleted. Exiting.\n");
+                    System.out.println("\n >>> $["+name+"|loop=" + loop_count + "|n="+has_node+"] Node already deleted. Exiting.\n");
                     return true;
                 }
     
@@ -122,7 +133,7 @@ public class BarreiraReutilizavel implements Watcher {
     
                 if (children.size() == 1 && children.get(0).equals(name)) {
                     zk.delete(nodePath, -1);
-                    System.out.println("\n >>> $["+processName+"] Last process node, deleting: " + nodePath + "\n");
+                    System.out.println("\n >>> $["+name+"|loop=" + loop_count + "|n="+has_node+"] Last process node, deleting: " + nodePath + "\n");
                     has_node = 0;
                     
                     synchronized(mutex) {
@@ -137,31 +148,31 @@ public class BarreiraReutilizavel implements Watcher {
     
                 if (name.equals(lowestNode)) {
                     if(zk.exists(ROOT + "/" + highestNode, this) == null){
-                        System.out.println("\n >>> $["+processName+"] Highest node already deleted: " + highestNode + "\n");
+                        System.out.println("\n >>> $["+name+"|loop=" + loop_count + "|n="+has_node+"] Highest node already deleted: " + highestNode + "\n");
                         continue;
                     }
-                    System.out.println("\n >>> $["+processName+"] Waiting for highest node to be deleted: " + highestNode + "\n");
+                    System.out.println("\n >>> $["+name+"|loop=" + loop_count + "|n="+has_node+"] Waiting for highest node to be deleted: " + highestNode + "\n");
                     zk.exists(ROOT + "/" + highestNode, this);                    
                 } 
                 
                 else {
                     String previousNode = children.get(currentIndex - 1);
                     if(zk.exists(ROOT + "/" + previousNode, this) == null){
-                        System.out.println("\n >>> $["+processName+"] previous node: " + previousNode + " already deleted. exiting\n");
+                        System.out.println("\n >>> $["+name+"|loop=" + loop_count + "|n="+has_node+"] previous node: " + previousNode + " already deleted. exiting\n");
                     } else {
-                        System.out.println("\n >>> $["+processName+"] Waiting for previous node to be deleted: " + previousNode + "\n");
+                        System.out.println("\n >>> $["+name+"|loop=" + loop_count + "|n="+has_node+"] Waiting for previous node to be deleted: " + previousNode + "\n");
                     }
                     
                     if (zk.exists(nodePath, this) != null) {
                         zk.delete(nodePath, -1);
-                        System.out.println("\n >>> $["+processName+"] Deleting current node: " + nodePath + "\n");
+                        System.out.println("\n >>> $["+name+"|loop=" + loop_count + "|n="+has_node+"] Deleting current node: " + nodePath + "\n");
                         has_node = 0;
                     }
                 }
     
                 synchronized (mutex) {
                     mutex.wait();
-                    System.out.println("\n >>> $["+processName+"] Notification Received, proceding to next loop.\n");
+                    System.out.println("\n >>> $["+name+"|loop=" + loop_count + "|n="+has_node+"] Notification Received, proceding to next loop.\n");
                     loop_count++;
                 }
             }

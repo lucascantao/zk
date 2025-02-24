@@ -2,7 +2,7 @@ package zk.test;
 
 import org.apache.zookeeper.*;
 
-import zk.test.fase3.BarreiraReutilizavel;
+import zk.test.fase4.BarreiraReutilizavelRestrita;
 
 import java.io.IOException;
 import java.util.Random;
@@ -14,21 +14,25 @@ import java.util.Random;
 public class App 
 {
 
+    
+
     public static void main( String[] args ) throws IOException, InterruptedException, KeeperException
     {
-        
-        for (int i = 0; i < 3; i++) {
-            BarreiraReutilizavel barrier = new BarreiraReutilizavel("localhost:2181");
-            Thread.sleep(1000);
-            // System.out.println("\n >>> $ INICIANDO THREAD: " + i + "\n");
-            new Thread(new Task(barrier, 10)).start();
+
+        int max_threads = 3;
+        int num_threads = 5;
+        BarreiraReutilizavelRestrita.SIZE = max_threads;
+
+        for (int i = 0; i < num_threads; i++) {
+            BarreiraReutilizavelRestrita barrier = new BarreiraReutilizavelRestrita("localhost:2181");
+            new Thread(new Task(barrier, 5)).start();
         }
     }
     static class Task implements Runnable {
-        private final BarreiraReutilizavel barrier;
+        private final BarreiraReutilizavelRestrita barrier;
         private final int num_cycles;
 
-        public Task(BarreiraReutilizavel barrier, int num_cycles) {
+        public Task(BarreiraReutilizavelRestrita barrier, int num_cycles) {
             this.barrier = barrier;
             this.num_cycles = num_cycles;
         }
@@ -40,13 +44,13 @@ public class App
 
                 for(int i = 0; i < num_cycles; i++) {
                     System.out.println("\n >>> $ INICIANDO CICLO: " + i + "\n");
-                    int process = new Random().nextInt(5000);
+                    int process = new Random().nextInt(1000);
 
-                    String t_name = Thread.currentThread().getName() +"0"+ i;
-                    System.out.println("\n >>> $ " + t_name + " processando ciclo "+ i +" \n");
+                    String threadName = Thread.currentThread().getName();
+                    System.out.println("\n >>> $ Criando thread: " + threadName + "\n");
                     Thread.sleep(process);
                     
-                    barrier.enter(t_name);
+                    barrier.enter(threadName);
 
                     barrier.leave();
 
