@@ -5,9 +5,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
-import java.util.logging.Level;
-import java.util.logging.LogManager;
-import java.util.logging.Logger;
 
 /**
  * Hello world!
@@ -19,13 +16,14 @@ public class App
     public static void main( String[] args ) throws IOException, InterruptedException, KeeperException
     {
 
-        int max_threads = 3;
-        int num_threads = 5;
+        int max_threads = 4;
+        int num_threads = 6;
         BarreiraReutilizavelRestritaAninhada.SIZE = max_threads;
 
         for (int i = 0; i < num_threads; i++) {
             BarreiraReutilizavelRestritaAninhada barrier = new BarreiraReutilizavelRestritaAninhada("localhost:2181");
-            new Thread(new Task(barrier, 2)).start();
+            Thread.sleep(100);
+            new Thread(new Task(barrier, 5)).start();
         }
     }
 
@@ -44,7 +42,7 @@ public class App
             "Karlach",
             "Wyll",
             "Gale",
-            // "Lae'zel",
+            "Lae'zel",
         };
 
         static ArrayList<String> personagens = new ArrayList<>(Arrays.asList(arr));
@@ -61,19 +59,22 @@ public class App
         public void run() {
             try {
                 barrier.createBarrierNode();
+                barrier.acoes = acoes;
 
                 for(int i = 0; i < num_cycles; i++) {
+                    
+                    barrier.turno = i;
 
                     if(Task.personagens.size() == 0) 
                         Task.personagens.addAll(Arrays.asList(Task.arr));
 
-                    System.out.println("\n >>>INICIANDO TURNO: " + i + "\n");
+                    
                     Random rand = new Random();
                     int process = rand.nextInt(1000);
                     String threadName = Task.personagens.remove(rand.nextInt(personagens.size()));
-                    System.out.println("\n >>>Turno de: " + threadName + "\n");
+                    System.out.println("[turno "+i+"]Turno de: " + threadName + ", Turno: " + i + "");
                     Thread.sleep(process);
-                    System.out.println("\n>>> [" + threadName + "] usou " + acoes[rand.nextInt(acoes.length - 1)] + "\n");
+                    // System.out.println("[turno "+i+"][" + threadName + "] usou " + acoes[rand.nextInt(acoes.length - 1)] + "");
                     
                     barrier.enter(threadName);
                     Thread.sleep(1000);

@@ -12,12 +12,17 @@ import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
+import java.util.Random;
 
 public class BarreiraReutilizavelRestritaAninhada implements Watcher {
 
     public static String ROOT = "/b1";
     public static int SESSION_TIMEOUT = 3000;
     public static int SIZE;
+    
+    static int turno_global = 0;
+    public int turno;
+    public String acoes[];
 
     private static Queue<String> waitingQueue = new LinkedList<>();
 
@@ -35,9 +40,9 @@ public class BarreiraReutilizavelRestritaAninhada implements Watcher {
 
         if(zk == null){
             try {
-                System.out.println("\n>>> $ Starting ZK: ");
+                System.out.println(">>> $ Starting ZK: ");
                 zk = new ZooKeeper(hostPort, SESSION_TIMEOUT, this);
-                System.out.println("\n>>> $ Finished starting ZK: " + zk + "");
+                System.out.println(">>> $ Finished starting ZK: " + zk + "");
             } catch (IOException e) {
                 System.out.println(e.toString());
                 zk = null;
@@ -48,8 +53,8 @@ public class BarreiraReutilizavelRestritaAninhada implements Watcher {
     @Override
     synchronized public void process(WatchedEvent event) {
         synchronized (mutex) {
-            // System.out.println("\n>>> $ process: " + name +"");
-            System.out.println("\n>>>["+personagem+"] NOTIFY: " + event.getType() + "");
+            // System.out.println(">>> $ process: " + name +"");
+            System.out.println("[turno "+turno+"]["+personagem+"] NOTIFY: " + event.getType() + "");
             mutex.notifyAll();
         }
     }
@@ -59,7 +64,7 @@ public class BarreiraReutilizavelRestritaAninhada implements Watcher {
         @Override
         synchronized public void process(WatchedEvent event) {
             synchronized (mutexReady) {
-                System.out.println("\n>>>["+personagem+"] NÓ READY CRIADO... ");
+                System.out.println("[turno "+turno+"]["+personagem+"] NÓ READY CRIADO... ");
                 mutexReady.notifyAll();
             }
         }
@@ -69,12 +74,20 @@ public class BarreiraReutilizavelRestritaAninhada implements Watcher {
         Stat stat = zk.exists(ROOT, false);
         if(stat == null) {
             zk.create(ROOT, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-            System.out.println("\n>>>["+personagem+"] Barrier node created: " + ROOT);
+            System.out.println("[turno "+turno+"]["+personagem+"] Barrier node created: " + ROOT);
         }
     }
     
 
     public boolean enter(String name) throws KeeperException, InterruptedException {
+        
+        while(turno > turno_global) {
+            synchronized(mutex){
+                System.out.println("\n[turno "+turno+"]["+name+"] Aguardando turno...");
+                mutex.wait();
+            }
+        }
+        
         Stat ready = zk.exists(ROOT + "/ready", new MyWatcher());
 
         this.personagem = name;
@@ -84,13 +97,13 @@ public class BarreiraReutilizavelRestritaAninhada implements Watcher {
         current_list.removeIf(s -> s.equals("ready"));
 
         if (ready != null) {
-            System.out.println("\n>>>[" + name + "] Barreira cheia! Entrando na fila de espera...");
+            System.out.println("[turno "+turno+"][" + name + "] Grupo cheio! Indo para o acampamento...");
             waitingQueue.add(name);
             // Espera até ser liberado pela thread que sai da barreira
             synchronized(mutexFull)
             {
                 while (waitingQueue.contains(name)) {
-                    System.out.println("\n>>>[" + name + "] " + waitingQueue);
+                    System.out.println("[turno "+turno+"][" + name + "] " + waitingQueue);
                     mutexFull.wait();
                 }
             }
@@ -98,8 +111,8 @@ public class BarreiraReutilizavelRestritaAninhada implements Watcher {
 
         String path = zk.create(n, new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
 
-        
-        System.out.println("\n>>>["+name+"]: Encerrando Turno!");
+        System.out.println("[turno "+turno+"][" + name + "] usou " + acoes[new Random().nextInt(acoes.length - 1)] + "");
+        System.out.println(">>>["+name+"]: Encerrando Turno!");
 
         if(ready!= null) {
             return true;
@@ -110,14 +123,14 @@ public class BarreiraReutilizavelRestritaAninhada implements Watcher {
         synchronized(mutex){
             if (list.size() >= SIZE) {
                 if(zk.exists(ROOT + "/ready", false) == null){
-                    System.out.println("\n>>>["+name+"] CRIANDO NÓ READY... ");
+                    System.out.println(">>>["+name+"] CRIANDO NÓ READY... ");
                     zk.create(ROOT + "/ready", new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
                 }
                 return true;
             }
         }
         synchronized (mutexReady) {
-            System.out.println("\n>>>[" + name + "] Aguardando demais personagens... ");
+            System.out.println("[turno "+turno+"][" + name + "] Aguardando demais personagens... ");
             mutexReady.wait();
             return true;
         }
@@ -138,17 +151,17 @@ public class BarreiraReutilizavelRestritaAninhada implements Watcher {
                 children.removeIf(s -> s.equals("ready"));
                 
                 if (children.isEmpty()) {
-                    System.out.println("\n>>>["+processName+"] No process nodes left. Exiting.");
+                    System.out.println("[turno "+turno+"]["+processName+"] No process nodes left. Exiting.");
                     return true;
                 }
     
                 children.sort(String::compareTo);
     
                 int currentIndex = children.indexOf(personagem);
-                System.out.println("\n>>>["+processName+"] SORTED CHILDREN: " + children + "");
-                System.out.println("\n>>>["+processName+"] NAME: " + personagem + " CURRENT INDEX: " + currentIndex + "");
+                // System.out.println("[turno "+turno+"]["+processName+"] SORTED CHILDREN: " + children + "");
+                // System.out.println("[turno "+turno+"]["+processName+"] NAME: " + personagem + " CURRENT INDEX: " + currentIndex + "");
                 if (currentIndex == -1) {
-                    System.out.println("\n>>>["+processName+"] Node already deleted. Exiting.");
+                    System.out.println("[turno "+turno+"]["+processName+"] Node already deleted. Exiting.");
                     return true;
                 }
     
@@ -157,12 +170,13 @@ public class BarreiraReutilizavelRestritaAninhada implements Watcher {
     
                 if (children.size() == 1 && children.get(0).equals(personagem)) {
                     zk.delete(nodePath, -1);
-                    System.out.println("\n>>>["+processName+"] Last process node, deleting: " + nodePath + "");
+                    System.out.println("[turno "+turno+"]["+processName+"] Last process node, deleting: " + nodePath + "");
                     has_node = 0;
                     
                     synchronized(mutex) {
                         if(zk.exists(ROOT + "/ready", false) != null && waitingQueue.size() == 0){
-                            System.out.println("\n>>>["+personagem+"] DELETANDO NÓ READY... fila: " + waitingQueue);
+                            // System.out.println("[turno "+turno+"]["+personagem+"] DELETANDO NÓ READY... fila: " + waitingQueue);
+                            turno_global++;
                             zk.delete(ROOT + "/ready", -1);
                         }
                     }
@@ -172,24 +186,24 @@ public class BarreiraReutilizavelRestritaAninhada implements Watcher {
     
                 if (personagem.equals(lowestNode)) {
                     if(zk.exists(ROOT + "/" + highestNode, this) == null){
-                        System.out.println("\n>>>["+processName+"] Highest node already deleted: " + highestNode + "");
+                        // System.out.println("[turno "+turno+"]["+processName+"] Highest node already deleted: " + highestNode + "");
                         continue;
                     }
-                    System.out.println("\n>>>["+processName+"] Waiting for highest node to be deleted: " + highestNode + "");
+                    // System.out.println("[turno "+turno+"]["+processName+"] Waiting for highest node to be deleted: " + highestNode + "");
                     zk.exists(ROOT + "/" + highestNode, this);                    
                 } 
                 
                 else {
                     String previousNode = children.get(currentIndex - 1);
                     if(zk.exists(ROOT + "/" + previousNode, this) == null){
-                        System.out.println("\n>>>["+processName+"] previous node: " + previousNode + " already deleted. exiting");
+                        System.out.println("[turno "+turno+"]["+processName+"] previous node: " + previousNode + " already deleted. exiting");
                     } else {
-                        System.out.println("\n>>>["+processName+"] Waiting for previous node to be deleted: " + previousNode + "");
+                        System.out.println("[turno "+turno+"]["+processName+"] Waiting for previous node to be deleted: " + previousNode + "");
                     }
                     
                     if (zk.exists(nodePath, this) != null) {
                         zk.delete(nodePath, -1);
-                        System.out.println("\n>>>["+processName+"] Deleting current node: " + nodePath + "");
+                        System.out.println("[turno "+turno+"]["+processName+"] Deleting current node: " + nodePath + "");
                         has_node = 0;
                     }
                 }
@@ -197,14 +211,14 @@ public class BarreiraReutilizavelRestritaAninhada implements Watcher {
                 synchronized(mutexFull) {
                     if (!waitingQueue.isEmpty()) {
                         String nextInLine = waitingQueue.poll();
-                        System.out.println("\n>>>[" + nextInLine + "] Saiu da fila de espera e pode entrar!");
+                        System.out.println(">>>[" + nextInLine + "] Saiu da fila de espera e pode entrar!");
                         mutexFull.notifyAll(); // Avisa as threads na fila
                     }
                 }
     
                 synchronized (mutex) {
                     mutex.wait();
-                    System.out.println("\n>>>["+processName+"] Notification Received, proceding to next loop.");
+                    // System.out.println("[turno "+turno+"]["+processName+"] Notification Received, proceding to next loop.");
                     loop_count++;
                 }
             }
