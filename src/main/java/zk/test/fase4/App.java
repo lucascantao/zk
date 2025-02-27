@@ -68,13 +68,12 @@ public class App
                     if(Task.personagens.size() == 0) 
                         Task.personagens.addAll(Arrays.asList(Task.arr));
 
-                    
                     Random rand = new Random();
-                    int process = rand.nextInt(1000);
+                    
                     String threadName = Task.personagens.remove(rand.nextInt(personagens.size()));
-                    System.out.println("[turno "+i+"]Turno de: " + threadName + ", Turno: " + i + "");
-                    Thread.sleep(process);
-                    // System.out.println("[turno "+i+"][" + threadName + "] usou " + acoes[rand.nextInt(acoes.length - 1)] + "");
+                    System.out.println("[turno "+i+"] Turno de: " + threadName + ", Turno: " + i + "");
+                    
+                    Thread.sleep(rand.nextInt(1000));
                     
                     barrier.enter(threadName);
                     Thread.sleep(1000);

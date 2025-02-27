@@ -16,7 +16,7 @@ import java.util.Random;
 
 public class BarreiraReutilizavelRestrita implements Watcher {
 
-    public static String ROOT = "/b1";
+    public static String ROOT = "/b_turno";
     public static int SESSION_TIMEOUT = 3000;
     public static int SIZE;
     
@@ -151,17 +151,15 @@ public class BarreiraReutilizavelRestrita implements Watcher {
                 children.removeIf(s -> s.equals("ready"));
                 
                 if (children.isEmpty()) {
-                    System.out.println("[turno "+turno+"]["+processName+"] No process nodes left. Exiting.");
+                    // System.out.println("[turno "+turno+"]["+processName+"] No process nodes left. Exiting.");
                     return true;
                 }
     
                 children.sort(String::compareTo);
     
                 int currentIndex = children.indexOf(personagem);
-                // System.out.println("[turno "+turno+"]["+processName+"] SORTED CHILDREN: " + children + "");
-                // System.out.println("[turno "+turno+"]["+processName+"] NAME: " + personagem + " CURRENT INDEX: " + currentIndex + "");
                 if (currentIndex == -1) {
-                    System.out.println("[turno "+turno+"]["+processName+"] Node already deleted. Exiting.");
+                    // System.out.println("[turno "+turno+"]["+processName+"] Node already deleted. Exiting.");
                     return true;
                 }
     
@@ -170,7 +168,7 @@ public class BarreiraReutilizavelRestrita implements Watcher {
     
                 if (children.size() == 1 && children.get(0).equals(personagem)) {
                     zk.delete(nodePath, -1);
-                    System.out.println("[turno "+turno+"]["+processName+"] Last process node, deleting: " + nodePath + "");
+                    // System.out.println("[turno "+turno+"]["+processName+"] Last process node, deleting: " + nodePath + "");
                     has_node = 0;
                     
                     synchronized(mutex) {
@@ -196,14 +194,14 @@ public class BarreiraReutilizavelRestrita implements Watcher {
                 else {
                     String previousNode = children.get(currentIndex - 1);
                     if(zk.exists(ROOT + "/" + previousNode, this) == null){
-                        System.out.println("[turno "+turno+"]["+processName+"] previous node: " + previousNode + " already deleted. exiting");
+                        // System.out.println("[turno "+turno+"]["+processName+"] previous node: " + previousNode + " already deleted. exiting");
                     } else {
-                        System.out.println("[turno "+turno+"]["+processName+"] Waiting for previous node to be deleted: " + previousNode + "");
+                        // System.out.println("[turno "+turno+"]["+processName+"] Waiting for previous node to be deleted: " + previousNode + "");
                     }
                     
                     if (zk.exists(nodePath, this) != null) {
                         zk.delete(nodePath, -1);
-                        System.out.println("[turno "+turno+"]["+processName+"] Deleting current node: " + nodePath + "");
+                        // System.out.println("[turno "+turno+"]["+processName+"] Deleting current node: " + nodePath + "");
                         has_node = 0;
                     }
                 }
@@ -218,7 +216,6 @@ public class BarreiraReutilizavelRestrita implements Watcher {
     
                 synchronized (mutex) {
                     mutex.wait();
-                    // System.out.println("[turno "+turno+"]["+processName+"] Notification Received, proceding to next loop.");
                     loop_count++;
                 }
             }

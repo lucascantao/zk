@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
+import zk.test.fase5.App.Task;
 
 import java.io.IOException;
 import java.util.LinkedList;
@@ -19,6 +20,7 @@ public class BarreiraReutilizavelRestritaAninhada implements Watcher {
     public static String ROOT = "/b1";
     public static int SESSION_TIMEOUT = 3000;
     public static int SIZE;
+    public static int ACOES;
     
     static int turno_global = 0;
     public int turno;
@@ -30,9 +32,12 @@ public class BarreiraReutilizavelRestritaAninhada implements Watcher {
     static Integer mutex = new Integer(-1);
     static Integer mutexReady = new Integer(-1);
     static Integer mutexFull = new Integer(-1);
+    public String hp;
     String personagem;
 
     public BarreiraReutilizavelRestritaAninhada(String hostPort) throws IOException {
+
+        hp = hostPort;
 
         Logger logger = (Logger) LoggerFactory.getLogger("org.apache.zookeeper");
         logger.setLevel(Level.ERROR); // Só mostra erros
@@ -79,7 +84,7 @@ public class BarreiraReutilizavelRestritaAninhada implements Watcher {
     }
     
 
-    public boolean enter(String name) throws KeeperException, InterruptedException {
+    public boolean enter(String name) throws KeeperException, InterruptedException, IOException {
         
         while(turno > turno_global) {
             synchronized(mutex){
@@ -111,7 +116,8 @@ public class BarreiraReutilizavelRestritaAninhada implements Watcher {
 
         String path = zk.create(n, new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
 
-        System.out.println("[turno "+turno+"][" + name + "] usou " + acoes[new Random().nextInt(acoes.length - 1)] + "");
+        // System.out.println("[turno "+turno+"][" + name + "] usou " + acoes[new Random().nextInt(acoes.length - 1)] + "");
+        this.acoes();
         System.out.println(">>>["+name+"]: Encerrando Turno!");
 
         if(ready!= null) {
@@ -224,4 +230,34 @@ public class BarreiraReutilizavelRestritaAninhada implements Watcher {
             }
 
     }
+
+
+    public void acoes() throws IOException {
+        
+        BarreiraAcao acao = new BarreiraAcao(hp, personagem, zk);
+        BarreiraAcao acao_extra = new BarreiraAcao(hp, personagem, zk);
+
+        acao.acoes = acoes;
+        acao_extra.acoes = acoes;
+
+        new Thread(() -> {
+            try{
+                acao.enter("acao");
+                acao.leave();
+            } catch (KeeperException e){
+            } catch (InterruptedException e){
+            }
+        }).start();
+
+        new Thread(() -> {
+            try{
+                acao_extra.enter("acao_extra");
+                acao_extra.leave();
+            } catch (KeeperException e){
+            } catch (InterruptedException e){
+            }
+        }).start();
+
+    }
+
 }
